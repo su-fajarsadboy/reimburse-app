@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth/server';
+import { requireApprover } from '@/lib/auth/server';
 import { getAdminClient } from '@/lib/db/client';
 import { z } from 'zod';
 import { withErrorBoundary, ok } from '@/lib/api/route-helpers';
@@ -12,7 +12,7 @@ const BulkApproveInput = z.object({
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return withErrorBoundary(async () => {
-    const admin = await requireAdmin();
+    const admin = await requireApprover();
     const { id } = await ctx.params;
     const parsed = BulkApproveInput.parse(await req.json());
     const sb = getAdminClient();

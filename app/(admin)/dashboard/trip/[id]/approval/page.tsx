@@ -11,8 +11,27 @@ type Tx = ComponentProps<typeof ApprovalCenter>['transactions'][number];
 export default async function ApprovalPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
+  const role = session.user.role ?? 'manager';
   const { id } = await params;
   const ctx = await loadTripContext(id, session.user.id);
+
+  if (role !== 'approver') {
+    return (
+      <div className="flex flex-col flex-1">
+        <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Approval Center" />
+        <div className="p-4 md:p-6">
+          <div className="bg-bg-1 border border-border rounded-lg p-8 text-center max-w-md mx-auto">
+            <div className="text-base font-semibold mb-1">Akses ditolak</div>
+            <p className="text-sm text-text-3">
+              Approval Center hanya bisa diakses oleh role <strong className="text-text-1">approver</strong>.
+              Hubungi admin yang punya akses approver untuk menyetujui transaksi reimbursable.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const txns = (await loadTransactions(id)) as unknown as Tx[];
   const pending = txns.filter(t => t.is_reimbursable && t.status === 'pending').length;
 

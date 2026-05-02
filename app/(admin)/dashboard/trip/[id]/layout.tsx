@@ -5,11 +5,19 @@ import { AppShell } from '@/components/layout/AppShell';
 import { loadTripContext } from '@/lib/services/trip-loader';
 
 export default async function TripLayout({
-  children, params,
-}: { children: React.ReactNode; params: Promise<{ id: string }> }) {
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
   const { id } = await params;
   await loadTripContext(id, session.user.id);
-  return <AppShell tripId={id}>{children}</AppShell>;
+  return (
+    <AppShell tripId={id} role={session.user.role ?? 'manager'}>
+      {children}
+    </AppShell>
+  );
 }

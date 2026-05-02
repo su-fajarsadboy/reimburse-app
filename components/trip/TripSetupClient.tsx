@@ -9,8 +9,9 @@ import { Copy, Check, Plus, X } from '@/components/icons';
 
 type Trip = { id: string; name: string; location: string | null; start_date: string | null; end_date: string | null; status: 'active' | 'closed'; share_token: string };
 type Participant = { id: string; name: string; color: string | null };
+type Role = 'manager' | 'approver';
 
-export function TripSetupClient({ trip, participants }: { trip: Trip; participants: Participant[] }) {
+export function TripSetupClient({ trip, participants, role = 'manager' }: { trip: Trip; participants: Participant[]; role?: Role }) {
   const [name, setName] = useState(trip.name);
   const [location, setLocation] = useState(trip.location ?? '');
   const [start, setStart] = useState(trip.start_date ?? '');
@@ -96,13 +97,18 @@ export function TripSetupClient({ trip, participants }: { trip: Trip; participan
         </Button>
       </div>
 
-      {trip.status === 'active' && (
+      {trip.status === 'active' && role === 'approver' && (
         <div className="bg-danger-soft border border-danger rounded-lg p-5 space-y-2">
           <div className="text-sm font-medium text-danger">Tutup Trip</div>
           <div className="text-xs">Setelah ditutup: trip jadi read-only, semua API key di-revoke, share link tampilkan halaman closed.</div>
           <Button variant="outline" className="text-danger border-danger" onClick={closeTrip} disabled={closing}>
             {closing ? 'Menutup…' : 'Tutup Trip'}
           </Button>
+        </div>
+      )}
+      {trip.status === 'active' && role !== 'approver' && (
+        <div className="bg-bg-1 border border-border rounded-lg p-5 text-xs text-text-3">
+          Tutup Trip hanya bisa dilakukan oleh role <strong className="text-text-1">approver</strong>.
         </div>
       )}
     </div>

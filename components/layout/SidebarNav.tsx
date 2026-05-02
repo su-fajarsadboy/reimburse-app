@@ -11,11 +11,14 @@ import {
   Settings,
 } from '@/components/icons';
 
+type Role = 'manager' | 'approver';
+
 type Item = {
   href: (id: string) => string;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
   match: string;
+  approverOnly?: boolean;
 };
 
 const ITEMS: Item[] = [
@@ -25,6 +28,7 @@ const ITEMS: Item[] = [
     label: 'Approval',
     icon: ShieldCheck,
     match: '/approval',
+    approverOnly: true,
   },
   {
     href: (id) => `/dashboard/trip/${id}/settlement`,
@@ -53,12 +57,18 @@ const ITEMS: Item[] = [
   { href: (id) => `/dashboard/trip/${id}/setup`, label: 'Setup', icon: Settings, match: '/setup' },
 ];
 
-export function SidebarNav({ tripId }: { tripId: string }) {
+export function SidebarNav({ tripId, role = 'manager' }: { tripId: string; role?: Role }) {
   const pathname = usePathname();
+  const visibleItems = ITEMS.filter((it) => !it.approverOnly || role === 'approver');
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-bg-1 p-3 gap-1">
-      <div className="px-3 py-3 text-sm font-semibold tracking-wide">Reimburse</div>
-      {ITEMS.map(({ href, label, icon: Icon, match }) => {
+      <div className="px-3 py-3">
+        <div className="text-sm font-semibold tracking-wide">Reimburse</div>
+        <div className="text-[10px] uppercase tracking-wider text-text-3 mt-0.5">
+          {role === 'approver' ? 'Approver' : 'Manager'}
+        </div>
+      </div>
+      {visibleItems.map(({ href, label, icon: Icon, match }) => {
         const isActive =
           match === '$'
             ? pathname === `/dashboard/trip/${tripId}`

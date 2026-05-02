@@ -219,6 +219,8 @@ export type Database = {
           approved_amount: number | null
           category: string
           created_at: string
+          created_by_participant_id: string | null
+          created_by_user_id: string | null
           date: string
           description: string
           id: string
@@ -240,6 +242,8 @@ export type Database = {
           approved_amount?: number | null
           category: string
           created_at?: string
+          created_by_participant_id?: string | null
+          created_by_user_id?: string | null
           date: string
           description: string
           id?: string
@@ -261,6 +265,8 @@ export type Database = {
           approved_amount?: number | null
           category?: string
           created_at?: string
+          created_by_participant_id?: string | null
+          created_by_user_id?: string | null
           date?: string
           description?: string
           id?: string
@@ -278,6 +284,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_created_by_participant_id_fkey"
+            columns: ["created_by_participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_payer_id_fkey"
             columns: ["payer_id"]
@@ -354,18 +374,21 @@ export type Database = {
           email: string
           id: string
           password_hash: string
+          role: string
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
           password_hash: string
+          role?: string
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
           password_hash?: string
+          role?: string
         }
         Relationships: []
       }

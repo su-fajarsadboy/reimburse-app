@@ -10,11 +10,12 @@ export default async function SetupPage({ params }: { params: Promise<{ id: stri
   if (!session?.user?.id) redirect('/login');
   const { id } = await params;
   const ctx = await loadTripContext(id, session.user.id);
+  const role = session.user.role ?? 'manager';
   return (
     <div className="flex flex-col flex-1">
       <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Pengaturan Trip" />
       <div className="p-4 md:p-6">
-        <TripSetupClient trip={ctx.trip} participants={ctx.participants} />
+        <TripSetupClient trip={ctx.trip} participants={ctx.participants} role={role} />
       </div>
     </div>
   );

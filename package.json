@@ -16,7 +16,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > lib/db/types.ts",
-    "seed:admin": "tsx lib/seed/admin.ts"
+    "seed:admin": "tsx lib/seed/admin.ts",
+    "seed:team": "tsx lib/seed/team.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.5.0",

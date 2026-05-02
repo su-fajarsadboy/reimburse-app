@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth/server';
+import { requireApprover } from '@/lib/auth/server';
 import { getAdminClient } from '@/lib/db/client';
 import { withErrorBoundary, ok } from '@/lib/api/route-helpers';
 import { ApiError } from '@/lib/errors';
 
 export async function POST(_: Request, ctx: { params: Promise<{ id: string; txnId: string }> }) {
   return withErrorBoundary(async () => {
-    await requireAdmin();
+    await requireApprover();
     const { txnId } = await ctx.params;
     const sb = getAdminClient();
     const { data, error } = await sb.from('transactions').update({

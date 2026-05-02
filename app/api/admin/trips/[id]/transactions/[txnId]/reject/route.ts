@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth/server';
+import { requireApprover } from '@/lib/auth/server';
 import { getAdminClient } from '@/lib/db/client';
 import { z } from 'zod';
 import { withErrorBoundary, ok } from '@/lib/api/route-helpers';
@@ -9,7 +9,7 @@ const RejectInput = z.object({ review_note: z.string().max(500).optional() });
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string; txnId: string }> }) {
   return withErrorBoundary(async () => {
-    const admin = await requireAdmin();
+    const admin = await requireApprover();
     const { txnId } = await ctx.params;
     const parsed = RejectInput.parse(await req.json());
     const sb = getAdminClient();
