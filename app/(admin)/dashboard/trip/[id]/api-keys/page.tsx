@@ -18,7 +18,7 @@ export default async function ApiKeysPage({ params }: { params: Promise<{ id: st
     .order('created_at', { ascending: false });
   return (
     <div className="flex flex-col flex-1">
-      <Topbar crumb={`Trip · ${ctx.trip.name}`} title="API Keys" />
+      <Topbar crumb={`Trip · ${ctx.trip.name}`} backHref={`/dashboard/trip/${id}`} title="API Keys" />
       <div className="p-4 md:p-6">
         <ApiKeyManager tripId={id} initialKeys={data ?? []} />
       </div>

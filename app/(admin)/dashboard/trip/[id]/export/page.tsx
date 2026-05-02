@@ -14,7 +14,7 @@ export default async function ExportPage({ params }: { params: Promise<{ id: str
   const payerNames = Object.fromEntries(ctx.participants.map(p => [p.id, p.name]));
   return (
     <div className="flex flex-col flex-1">
-      <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Export untuk Reimburse" />
+      <Topbar crumb={`Trip · ${ctx.trip.name}`} backHref={`/dashboard/trip/${id}`} title="Export untuk Reimburse" />
       <div className="p-4 md:p-6">
         <ExportPanel tripId={id} transactions={txns} payerNames={payerNames} />
       </div>

@@ -13,7 +13,7 @@ export default async function SetupPage({ params }: { params: Promise<{ id: stri
   const role = session.user.role ?? 'manager';
   return (
     <div className="flex flex-col flex-1">
-      <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Pengaturan Trip" />
+      <Topbar crumb={`Trip · ${ctx.trip.name}`} backHref={`/dashboard/trip/${id}`} title="Pengaturan Trip" />
       <div className="p-4 md:p-6">
         <TripSetupClient trip={ctx.trip} participants={ctx.participants} role={role} />
       </div>

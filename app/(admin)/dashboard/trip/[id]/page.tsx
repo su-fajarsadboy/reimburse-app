@@ -17,12 +17,16 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="flex flex-col flex-1">
       <Topbar
-        crumb={`Trip · ${ctx.trip.name}`}
-        title="Semua Pengeluaran"
+        crumb="Trip Saya"
+        backHref="/dashboard"
+        title={ctx.trip.name}
         actions={<NewTxnButton tripId={id} participants={ctx.participants} />}
       />
       <div className="p-4 md:p-6 flex flex-col gap-4">
         <TripStatsGrid transactions={txns} participantsCount={ctx.participants.length} />
+        <h2 className="text-sm font-semibold tracking-wide text-text-2 uppercase">
+          Semua Pengeluaran
+        </h2>
         <TransactionList transactions={txns} participants={ctx.participants} />
       </div>
     </div>

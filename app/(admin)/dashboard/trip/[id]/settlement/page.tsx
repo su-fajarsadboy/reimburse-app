@@ -13,7 +13,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
   const txns = await loadTransactions(id);
   return (
     <div className="flex flex-col flex-1">
-      <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Siapa Transfer ke Siapa" />
+      <Topbar crumb={`Trip · ${ctx.trip.name}`} backHref={`/dashboard/trip/${id}`} title="Siapa Transfer ke Siapa" />
       <div className="p-4 md:p-6">
         <SettlementView participants={ctx.participants} transactions={txns} />
       </div>

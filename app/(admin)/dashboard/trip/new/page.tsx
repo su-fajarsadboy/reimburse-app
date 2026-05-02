@@ -9,7 +9,7 @@ export default async function NewTripPage() {
   if (!session?.user?.id) redirect('/login');
   return (
     <div className="min-h-screen flex flex-col">
-      <Topbar crumb="Admin" title="Buat Trip Baru" />
+      <Topbar crumb="Trip Saya" backHref="/dashboard" title="Buat Trip Baru" />
       <SetupWizard />
     </div>
   );

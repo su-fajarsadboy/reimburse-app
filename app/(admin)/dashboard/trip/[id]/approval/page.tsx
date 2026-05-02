@@ -18,7 +18,7 @@ export default async function ApprovalPage({ params }: { params: Promise<{ id: s
   if (role !== 'approver') {
     return (
       <div className="flex flex-col flex-1">
-        <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Approval Center" />
+        <Topbar crumb={`Trip · ${ctx.trip.name}`} backHref={`/dashboard/trip/${id}`} title="Approval Center" />
         <div className="p-4 md:p-6">
           <div className="bg-bg-1 border border-border rounded-lg p-8 text-center max-w-md mx-auto">
             <div className="text-base font-semibold mb-1">Akses ditolak</div>
@@ -39,6 +39,7 @@ export default async function ApprovalPage({ params }: { params: Promise<{ id: s
     <div className="flex flex-col flex-1">
       <Topbar
         crumb={`Trip · ${ctx.trip.name}`}
+        backHref={`/dashboard/trip/${id}`}
         title="Approval Center"
         actions={<span className="text-xs px-2 py-1 rounded bg-warm-soft text-warm">{pending} pending</span>}
       />
