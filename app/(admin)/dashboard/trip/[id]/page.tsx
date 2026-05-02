@@ -5,6 +5,7 @@ import { Topbar } from '@/components/layout/Topbar';
 import { loadTripContext, loadTransactions } from '@/lib/services/trip-loader';
 import { TripStatsGrid } from '@/components/trip/TripStatsGrid';
 import { TransactionList } from '@/components/trip/TransactionList';
+import { NewTxnButton } from '@/components/trip/TripPageClient';
 
 export default async function TripPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -15,7 +16,11 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex flex-col flex-1">
-      <Topbar crumb={`Trip · ${ctx.trip.name}`} title="Semua Pengeluaran" />
+      <Topbar
+        crumb={`Trip · ${ctx.trip.name}`}
+        title="Semua Pengeluaran"
+        actions={<NewTxnButton tripId={id} participants={ctx.participants} />}
+      />
       <div className="p-4 md:p-6 flex flex-col gap-4">
         <TripStatsGrid transactions={txns} participantsCount={ctx.participants.length} />
         <TransactionList transactions={txns} participants={ctx.participants} />
