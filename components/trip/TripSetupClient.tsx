@@ -43,9 +43,30 @@ export function TripSetupClient({ trip, participants, role = 'manager' }: { trip
     router.refresh();
   }
 
-  async function removePart(pid: string) {
-    if (!confirm('Hapus peserta ini?')) return;
-    await fetch(`/api/admin/trips/${trip.id}/participants/${pid}`, { method: 'DELETE' });
+  async function removePart(pid: string, name: string) {
+    if (!confirm(`Hapus peserta "${name}"?`)) return;
+    let r = await fetch(`/api/admin/trips/${trip.id}/participants/${pid}`, { method: 'DELETE' });
+    let body = await r.json().catch(() => ({}));
+
+    if (r.status === 409 && body.error?.code === 'VALIDATION_ERROR') {
+      const splits = body.error?.fields?.affected_splits ?? '?';
+      const ok = confirm(
+        `${name} masih ada di split ${splits} transaksi.\n\n` +
+          `Lanjut hapus? Share-nya akan otomatis dibagi ulang ke peserta tersisa.\n` +
+          `Receipt + nominal transaksi tetap utuh — hanya per-orang share yang berubah.`,
+      );
+      if (!ok) return;
+      r = await fetch(
+        `/api/admin/trips/${trip.id}/participants/${pid}?force=true`,
+        { method: 'DELETE' },
+      );
+      body = await r.json().catch(() => ({}));
+    }
+
+    if (!r.ok || body.success === false) {
+      alert(`Gagal hapus: ${body.error?.message ?? 'unknown error'}`);
+      return;
+    }
     router.refresh();
   }
 
@@ -79,7 +100,7 @@ export function TripSetupClient({ trip, participants, role = 'manager' }: { trip
             <div key={p.id} className="flex items-center gap-3 p-2 bg-bg-2 rounded">
               <Avatar name={p.name} color={p.color} size={28} />
               <span className="flex-1 text-sm">{p.name}</span>
-              <Button variant="ghost" size="icon" onClick={() => removePart(p.id)}><X size={14} /></Button>
+              <Button variant="ghost" size="icon" onClick={() => removePart(p.id, p.name)}><X size={14} /></Button>
             </div>
           ))}
         </div>
