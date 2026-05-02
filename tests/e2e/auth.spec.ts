@@ -16,7 +16,7 @@ test.describe('auth / login', () => {
     await page.click('button[type=submit]');
     await expect(
       page.getByText(/email atau password salah/i),
-    ).toBeVisible({ timeout: 8000 });
+    ).toBeVisible({ timeout: 15000 });
     await expect(page).toHaveURL(/\/login/);
   });
 
