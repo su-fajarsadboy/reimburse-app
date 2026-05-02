@@ -12,9 +12,9 @@ export function withErrorBoundary<T>(handler: () => Promise<NextResponse<T>>) {
       }
       if (e instanceof ZodError) {
         const fields: Record<string, string> = {};
-        e.errors.forEach(err => {
-          const path = err.path.join('.');
-          fields[path] = err.message;
+        e.issues.forEach((issue) => {
+          const path = issue.path.map(String).join('.');
+          fields[path] = issue.message;
         });
         return NextResponse.json(err('VALIDATION_ERROR', 'Input tidak valid', fields), { status: 422 });
       }

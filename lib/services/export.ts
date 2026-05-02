@@ -14,7 +14,7 @@ export type ExportRow = {
   notes: string;
 };
 
-export async function buildReimburseRows(tripId: string): Promise<{ rows: ExportRow[]; rawTransactions: Array<{ id: string; date: string; description: string; receipt_url: string | null }> }> {
+export async function buildReimburseRows(tripId: string): Promise<{ rows: ExportRow[]; rawTransactions: Array<{ id: string; date: string; description: string; receipt_url: string }> }> {
   const sb = getAdminClient();
   const { data: txns } = await sb.from('transactions')
     .select('id, date, description, category, amount, approved_amount, status, payer_id, receipt_url, notes, participants:payer_id(name)')
