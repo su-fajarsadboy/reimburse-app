@@ -10,7 +10,8 @@ export interface RateLimiter {
 }
 
 export class NoOpRateLimiter implements RateLimiter {
-  async check(): Promise<RateLimitResult> {
+  async check(_key?: string): Promise<RateLimitResult> {
+    void _key;
     return { success: true, limit: 60, remaining: 60, resetSeconds: 60 };
   }
 }
