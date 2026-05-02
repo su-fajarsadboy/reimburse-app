@@ -6,10 +6,14 @@ import { withErrorBoundary, ok } from '@/lib/api/route-helpers';
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return withErrorBoundary(async () => {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const { id } = await ctx.params;
     const parsed = TransactionInput.parse(await req.json());
-    const result = await insertTransaction({ tripId: id, data: parsed });
+    const result = await insertTransaction({
+      tripId: id,
+      data: parsed,
+      submitter: { kind: 'user', userId: admin.id },
+    });
     return NextResponse.json(ok(result), { status: 201 });
   })();
 }

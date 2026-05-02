@@ -21,6 +21,11 @@ type Tx = {
   id: string; date: string; time: string | null; description: string;
   amount: number; category: string; payer_id: string;
   is_reimbursable: boolean; receipt_url: string | null;
+  status?: 'pending' | 'approved' | 'rejected' | string;
+  source?: string | null;
+  created_by_user?: { email: string; role?: string } | null;
+  created_by_participant?: { name: string } | null;
+  reviewer?: { email: string; role?: string } | null;
 };
 
 type Participant = { id: string; name: string; color: string | null };
@@ -75,18 +80,33 @@ export function TransactionList({ transactions, participants }: { transactions: 
             </div>
             {items.map(tx => {
               const payer = partMap[tx.payer_id];
+              const submitterLabel =
+                tx.created_by_user?.email
+                  ? `Diinput admin ${tx.created_by_user.email.split('@')[0]}`
+                  : tx.created_by_participant?.name
+                    ? `Diinput peserta ${tx.created_by_participant.name}`
+                    : tx.source === 'api' ? 'Diinput AI agent' : null;
+              const reviewerLabel = tx.reviewer?.email
+                ? `${tx.status === 'approved' ? 'Disetujui' : tx.status === 'rejected' ? 'Ditolak' : 'Direview'} oleh ${tx.reviewer.email.split('@')[0]}`
+                : null;
               return (
                 <div key={tx.id} className="px-4 py-3 flex items-center gap-3 border-t border-border hover:bg-bg-2">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[tx.category] }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{tx.description}</div>
-                    <div className="text-xs flex items-center gap-2 mt-0.5">
+                    <div className="text-xs flex items-center gap-2 mt-0.5 flex-wrap">
                       {payer && <span className="flex items-center gap-1"><Avatar name={payer.name} color={payer.color} size={14} /> {payer.name}</span>}
                       <span>·</span>
                       <span>{CATEGORY_LABEL[tx.category]}</span>
                       {tx.time && <><span>·</span><span>{tx.time}</span></>}
                       {tx.is_reimbursable && <span className="px-1.5 py-0.5 rounded bg-warm-soft text-warm text-[10px]"><Bolt size={9} /> Reimburse</span>}
                     </div>
+                    {(submitterLabel || reviewerLabel) && (
+                      <div className="text-[10px] text-text-3 mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                        {submitterLabel && <span>{submitterLabel}</span>}
+                        {reviewerLabel && <span className="text-success">· {reviewerLabel}</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="mono text-sm font-semibold shrink-0">Rp {formatRupiah(tx.amount)}</div>
                 </div>

@@ -24,11 +24,22 @@ export async function validateBusinessRules(
   }
 }
 
+export type Submitter =
+  | { kind: 'user'; userId: string }
+  | { kind: 'participant'; participantId: string }
+  | { kind: 'agent' };
+
 export async function insertTransaction(input: {
   tripId: string;
   data: TransactionInputT;
+  submitter?: Submitter;
 }): Promise<{ id: string; trip_id: string; date: string; amount: number; created_at: string }> {
   await validateBusinessRules(input.tripId, input.data.payer_id, input.data.participant_ids);
+
+  const submitter = input.submitter ?? { kind: 'agent' };
+  const created_by_user_id = submitter.kind === 'user' ? submitter.userId : null;
+  const created_by_participant_id =
+    submitter.kind === 'participant' ? submitter.participantId : null;
 
   const sb = getAdminClient();
   const { data: txn, error } = await sb.from('transactions').insert({
@@ -43,6 +54,8 @@ export async function insertTransaction(input: {
     receipt_url: input.data.receipt_url ?? null,
     notes: input.data.notes ?? null,
     source: input.data.source,
+    created_by_user_id,
+    created_by_participant_id,
   }).select('id, trip_id, date, amount, created_at').single();
 
   if (error || !txn) throw new ApiError('INTERNAL_ERROR', 500, error?.message ?? 'Insert failed');

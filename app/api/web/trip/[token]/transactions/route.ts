@@ -10,7 +10,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
     const { token } = await ctx.params;
     const tripId = await requireActiveTrip(token);
     const parsed = TransactionInput.parse(await req.json());
-    const result = await insertTransaction({ tripId, data: parsed });
+    // Optional `x-participant-id` header lets us record who submitted.
+    // Falls back to the payer when the header is missing (older clients).
+    const headerPid = req.headers.get('x-participant-id')?.trim();
+    const submitterPid = headerPid && headerPid.length > 0 ? headerPid : parsed.payer_id;
+    const result = await insertTransaction({
+      tripId,
+      data: parsed,
+      submitter: { kind: 'participant', participantId: submitterPid },
+    });
     return NextResponse.json(ok(result), { status: 201 });
   })();
 }

@@ -41,7 +41,11 @@ export async function POST(req: NextRequest) {
       }
 
       const parsed = TransactionInput.parse(body);
-      const result = await insertTransaction({ tripId: auth.tripId, data: parsed });
+      const result = await insertTransaction({
+        tripId: auth.tripId,
+        data: parsed,
+        submitter: { kind: 'agent' },
+      });
       const responseBody = ok(result);
       statusCode = 201;
       await idem.save(responseBody, 201);
