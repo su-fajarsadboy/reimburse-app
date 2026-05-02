@@ -1,9 +1,6 @@
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { z } from 'zod';
+import { z } from './zod-init';
 import { TransactionInput } from './transaction';
-
-extendZodWithOpenApi(z);
 
 export function buildOpenApiSpec() {
   const registry = new OpenAPIRegistry();

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod-init';
 
 export const CATEGORIES = ['transport', 'makan', 'logistik', 'sewa_alat', 'tiket', 'lain'] as const;
 
