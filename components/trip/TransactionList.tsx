@@ -60,6 +60,8 @@ export function TransactionList({
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<{ id: string; msg: string } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropDate, setDropDate] = useState<string | null>(null);
 
   const partMap = useMemo(() => Object.fromEntries(participants.map(p => [p.id, p])), [participants]);
 
@@ -126,6 +128,29 @@ export function TransactionList({
     }
   }
 
+  async function moveToDate(txnId: string, currentDate: string, newDate: string) {
+    if (!adminMode || newDate === currentDate) return;
+    setBusyId(txnId);
+    setErrorId(null);
+    try {
+      const r = await fetch(`/api/admin/trips/${tripId}/transactions/${txnId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ date: newDate }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok || body.success === false) {
+        setErrorId({ id: txnId, msg: body.error?.message ?? 'Gagal pindah tanggal' });
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusyId(null);
+      setDraggingId(null);
+      setDropDate(null);
+    }
+  }
+
   async function deleteTx(txnId: string, description: string) {
     const ok = confirm(`Hapus transaksi "${description}"? Aksi ini tidak bisa dibatalkan.`);
     if (!ok) return;
@@ -166,14 +191,44 @@ export function TransactionList({
         ))}
       </div>
 
+      {adminMode && (
+        <div className="px-4 py-2 text-[10px] text-text-3 border-t border-border bg-bg-0">
+          Tip: tarik baris transaksi ke header tanggal lain untuk memindahkannya.
+        </div>
+      )}
+
       {Object.keys(grouped).length === 0 ? (
         <div className="p-12 text-center text-text-3 text-sm">Tidak ada transaksi.</div>
       ) : Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([date, items]) => {
         const sub = items.reduce((s, t) => s + t.amount, 0);
+        const isDropTarget = dropDate === date && draggingId !== null;
         return (
           <div key={date}>
-            <div className="px-4 py-2 flex justify-between text-xs uppercase tracking-wider bg-bg-0 border-t border-border">
-              <span>{date}</span>
+            <div
+              className={`px-4 py-2 flex justify-between text-xs uppercase tracking-wider bg-bg-0 border-t border-border transition ${
+                isDropTarget ? 'ring-2 ring-primary bg-primary-soft' : ''
+              }`}
+              onDragOver={(e) => {
+                if (!adminMode || !draggingId) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dropDate !== date) setDropDate(date);
+              }}
+              onDragLeave={() => {
+                if (dropDate === date) setDropDate(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const txnId = e.dataTransfer.getData('text/plain');
+                if (!txnId) return;
+                const tx = transactions.find((t) => t.id === txnId);
+                if (!tx) return;
+                void moveToDate(txnId, tx.date, date);
+              }}
+            >
+              <span>
+                {isDropTarget ? `↓ Pindah ke ${date}` : date}
+              </span>
               <span className="mono">Rp {formatRupiah(sub)}</span>
             </div>
             {items.map(tx => {
@@ -258,11 +313,25 @@ export function TransactionList({
                 ? `${tx.status === 'approved' ? 'Disetujui' : tx.status === 'rejected' ? 'Ditolak' : 'Direview'} oleh ${tx.reviewer.email.split('@')[0]}`
                 : null;
 
+              const isDragging = draggingId === tx.id;
               return (
                 <div
                   key={tx.id}
                   data-txn-id={tx.id}
-                  className="group px-4 py-3 flex items-center gap-3 border-t border-border hover:bg-bg-2"
+                  draggable={adminMode && !isEditing && !isBusy}
+                  onDragStart={(e) => {
+                    if (!adminMode) return;
+                    e.dataTransfer.setData('text/plain', tx.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDraggingId(tx.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setDropDate(null);
+                  }}
+                  className={`group px-4 py-3 flex items-center gap-3 border-t border-border hover:bg-bg-2 transition ${
+                    adminMode ? 'cursor-grab active:cursor-grabbing' : ''
+                  } ${isDragging ? 'opacity-40' : ''}`}
                 >
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[tx.category] }} />
                   <div className="flex-1 min-w-0">
