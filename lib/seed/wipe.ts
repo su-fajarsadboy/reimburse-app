@@ -11,7 +11,7 @@ async function main() {
   // Each entry: table name, "filter column" we use to express "match every row".
   // Supabase JS requires every delete() to be filter-bound, so we lean on a
   // never-null column per table.
-  const tables: Array<{ name: string; col: string }> = [
+  const tables = [
     { name: 'transaction_participants', col: 'transaction_id' },
     { name: 'transactions',             col: 'id' },
     { name: 'idempotency_records',      col: 'key' },
@@ -19,13 +19,13 @@ async function main() {
     { name: 'api_keys',                 col: 'id' },
     { name: 'participants',             col: 'id' },
     { name: 'trips',                    col: 'id' },
-  ];
+  ] as const;
 
   for (const t of tables) {
-    const { error, count } = await sb
-      .from(t.name)
-      .delete({ count: 'exact' })
-      .not(t.col, 'is', null);
+    // The supabase typed client wants a string literal here; iterating widens
+    // the type so we cast through unknown to satisfy both build and runtime.
+    const q = (sb as unknown as { from: (n: string) => ReturnType<typeof sb.from> }).from(t.name);
+    const { error, count } = await q.delete({ count: 'exact' }).not(t.col, 'is', null);
     if (error) throw new Error(`[wipe] delete ${t.name} failed: ${error.message}`);
     console.log(`[wipe] ${t.name.padEnd(26)} deleted ${count ?? '?'} rows`);
   }

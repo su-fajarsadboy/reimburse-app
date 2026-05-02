@@ -1,10 +1,12 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Avatar } from './Avatar';
 import { CATEGORIES } from '@/lib/validation/transaction';
 import { formatRupiah } from '@/lib/utils';
-import { Search, Bolt } from '@/components/icons';
+import { Search, Bolt, Pencil, Trash2, Check, X } from '@/components/icons';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const CATEGORY_LABEL: Record<string, string> = {
   transport: 'Transport', makan: 'Makan', logistik: 'Logistik',
@@ -30,10 +32,34 @@ type Tx = {
 
 type Participant = { id: string; name: string; color: string | null };
 
-export function TransactionList({ transactions, participants }: { transactions: Tx[]; participants: Participant[] }) {
+type EditDraft = {
+  description: string;
+  amount: string;
+  category: string;
+  payer_id: string;
+  date: string;
+  is_reimbursable: boolean;
+};
+
+export function TransactionList({
+  tripId,
+  transactions,
+  participants,
+}: {
+  /** When set, each row exposes inline edit + delete (admin-side). */
+  tripId?: string;
+  transactions: Tx[];
+  participants: Participant[];
+}) {
+  const adminMode = Boolean(tripId);
+  const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'reimburse'>('all');
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<EditDraft | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<{ id: string; msg: string } | null>(null);
 
   const partMap = useMemo(() => Object.fromEntries(participants.map(p => [p.id, p])), [participants]);
 
@@ -47,6 +73,78 @@ export function TransactionList({ transactions, participants }: { transactions: 
   const grouped = filtered.reduce<Record<string, Tx[]>>((acc, t) => {
     (acc[t.date] = acc[t.date] || []).push(t); return acc;
   }, {});
+
+  function startEdit(tx: Tx) {
+    if (!adminMode) return;
+    setEditingId(tx.id);
+    setErrorId(null);
+    setDraft({
+      description: tx.description,
+      amount: String(tx.amount),
+      category: tx.category,
+      payer_id: tx.payer_id,
+      date: tx.date,
+      is_reimbursable: tx.is_reimbursable,
+    });
+  }
+  function cancelEdit() {
+    setEditingId(null);
+    setDraft(null);
+    setErrorId(null);
+  }
+
+  async function saveEdit(txnId: string) {
+    if (!draft) return;
+    const amount = Number(draft.amount.replace(/[^\d]/g, ''));
+    if (!draft.description.trim()) { setErrorId({ id: txnId, msg: 'Deskripsi wajib' }); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { setErrorId({ id: txnId, msg: 'Nominal harus > 0' }); return; }
+
+    setBusyId(txnId);
+    setErrorId(null);
+    try {
+      const r = await fetch(`/api/admin/trips/${tripId}/transactions/${txnId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          description: draft.description.trim(),
+          amount,
+          category: draft.category,
+          payer_id: draft.payer_id,
+          date: draft.date,
+          is_reimbursable: draft.is_reimbursable,
+        }),
+      });
+      const body = await r.json();
+      if (!r.ok || !body.success) {
+        setErrorId({ id: txnId, msg: body.error?.message ?? 'Gagal update' });
+        return;
+      }
+      cancelEdit();
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function deleteTx(txnId: string, description: string) {
+    const ok = confirm(`Hapus transaksi "${description}"? Aksi ini tidak bisa dibatalkan.`);
+    if (!ok) return;
+    setBusyId(txnId);
+    setErrorId(null);
+    try {
+      const r = await fetch(`/api/admin/trips/${tripId}/transactions/${txnId}`, {
+        method: 'DELETE',
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok || body.success === false) {
+        setErrorId({ id: txnId, msg: body.error?.message ?? 'Gagal hapus' });
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="bg-bg-1 border border-border rounded-lg">
@@ -79,6 +177,76 @@ export function TransactionList({ transactions, participants }: { transactions: 
               <span className="mono">Rp {formatRupiah(sub)}</span>
             </div>
             {items.map(tx => {
+              const isEditing = editingId === tx.id;
+              const isBusy = busyId === tx.id;
+              const error = errorId?.id === tx.id ? errorId.msg : null;
+
+              if (isEditing && draft) {
+                return (
+                  <div key={tx.id} data-txn-id={tx.id} className="px-4 py-3 border-t border-border bg-bg-2/40 space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                      <Input
+                        className="md:col-span-5"
+                        value={draft.description}
+                        onChange={e => setDraft(d => d && ({ ...d, description: e.target.value }))}
+                        placeholder="Deskripsi"
+                      />
+                      <Input
+                        className="md:col-span-2"
+                        type="text"
+                        inputMode="numeric"
+                        value={draft.amount}
+                        onChange={e => setDraft(d => d && ({ ...d, amount: e.target.value }))}
+                        placeholder="Nominal"
+                      />
+                      <select
+                        className="md:col-span-2 h-9 px-2 rounded-md border border-border bg-bg-input text-sm"
+                        value={draft.category}
+                        onChange={e => setDraft(d => d && ({ ...d, category: e.target.value }))}
+                      >
+                        {CATEGORIES.map(c => (
+                          <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
+                        ))}
+                      </select>
+                      <select
+                        className="md:col-span-2 h-9 px-2 rounded-md border border-border bg-bg-input text-sm"
+                        value={draft.payer_id}
+                        onChange={e => setDraft(d => d && ({ ...d, payer_id: e.target.value }))}
+                      >
+                        {participants.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <Input
+                        className="md:col-span-1"
+                        type="date"
+                        value={draft.date}
+                        onChange={e => setDraft(d => d && ({ ...d, date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={draft.is_reimbursable}
+                          onChange={e => setDraft(d => d && ({ ...d, is_reimbursable: e.target.checked }))}
+                        />
+                        Tandai sebagai reimbursable
+                      </label>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isBusy}>
+                          <X size={14} /> Batal
+                        </Button>
+                        <Button size="sm" onClick={() => saveEdit(tx.id)} disabled={isBusy}>
+                          <Check size={14} /> {isBusy ? 'Menyimpan…' : 'Simpan'}
+                        </Button>
+                      </div>
+                    </div>
+                    {error && <div className="text-xs text-danger">{error}</div>}
+                  </div>
+                );
+              }
+
               const payer = partMap[tx.payer_id];
               const submitterLabel =
                 tx.created_by_user?.email
@@ -89,8 +257,13 @@ export function TransactionList({ transactions, participants }: { transactions: 
               const reviewerLabel = tx.reviewer?.email
                 ? `${tx.status === 'approved' ? 'Disetujui' : tx.status === 'rejected' ? 'Ditolak' : 'Direview'} oleh ${tx.reviewer.email.split('@')[0]}`
                 : null;
+
               return (
-                <div key={tx.id} className="px-4 py-3 flex items-center gap-3 border-t border-border hover:bg-bg-2">
+                <div
+                  key={tx.id}
+                  data-txn-id={tx.id}
+                  className="group px-4 py-3 flex items-center gap-3 border-t border-border hover:bg-bg-2"
+                >
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[tx.category] }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{tx.description}</div>
@@ -107,8 +280,31 @@ export function TransactionList({ transactions, participants }: { transactions: 
                         {reviewerLabel && <span className="text-success">· {reviewerLabel}</span>}
                       </div>
                     )}
+                    {error && <div className="text-[11px] text-danger mt-1">{error}</div>}
                   </div>
                   <div className="mono text-sm font-semibold shrink-0">Rp {formatRupiah(tx.amount)}</div>
+                  {adminMode && (
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(tx)}
+                        disabled={isBusy}
+                        aria-label={`Edit ${tx.description}`}
+                        className="p-1.5 rounded-md text-text-3 hover:bg-bg-3 hover:text-text-1 disabled:opacity-50"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteTx(tx.id, tx.description)}
+                        disabled={isBusy}
+                        aria-label={`Hapus ${tx.description}`}
+                        className="p-1.5 rounded-md text-text-3 hover:bg-danger-soft hover:text-danger disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

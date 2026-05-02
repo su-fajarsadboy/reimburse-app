@@ -27,7 +27,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
         <h2 className="text-sm font-semibold tracking-wide text-text-2 uppercase">
           Semua Pengeluaran
         </h2>
-        <TransactionList transactions={txns} participants={ctx.participants} />
+        <TransactionList tripId={id} transactions={txns} participants={ctx.participants} />
       </div>
     </div>
   );
