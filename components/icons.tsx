@@ -27,4 +27,6 @@ export {
   ArrowLeftRight,
   Settings,
   LogOut,
+  Loader2,
+  ImageIcon,
 } from 'lucide-react';

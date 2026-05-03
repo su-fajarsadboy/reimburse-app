@@ -6,7 +6,7 @@ import { formatRupiah } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, X, Bolt, Receipt as ReceiptIcon } from '@/components/icons';
+import { Check, X, Bolt, Receipt as ReceiptIcon, Loader2, ImageIcon } from '@/components/icons';
 
 type Participant = { id: string; name: string; color: string | null };
 type Tx = {
@@ -24,6 +24,7 @@ export function ApprovalCenter({ tripId, transactions, participants }: {
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
   const router = useRouter();
 
   const filtered = reimbList.filter(t => filter === 'all' ? true : t.status === filter);
@@ -64,12 +65,41 @@ export function ApprovalCenter({ tripId, transactions, participants }: {
     router.refresh();
   }
   async function bulkApprove() {
-    await fetch(`/api/admin/trips/${tripId}/transactions/bulk-approve`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ txn_ids: [...selected] }),
-    });
-    setSelected(new Set());
-    router.refresh();
+    setBulkLoading(true);
+    try {
+      await fetch(`/api/admin/trips/${tripId}/transactions/bulk-approve`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ txn_ids: [...selected] }),
+      });
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function approveAllPending() {
+    const pendingIds = reimbList.filter(t => t.status === 'pending').map(t => t.id);
+    if (pendingIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Approve semua ${pendingIds.length} transaksi pending senilai Rp ${formatRupiah(stats.pendingAmt)}?\n\nMasing-masing transaksi disetujui dengan jumlah penuh (sesuai diajukan).`
+    );
+    if (!confirmed) return;
+    setBulkLoading(true);
+    try {
+      // bulk-approve API caps at 100 per call — batch if more
+      for (let i = 0; i < pendingIds.length; i += 100) {
+        const chunk = pendingIds.slice(i, i + 100);
+        await fetch(`/api/admin/trips/${tripId}/transactions/bulk-approve`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ txn_ids: chunk, review_note: 'Bulk approve all pending' }),
+        });
+      }
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkLoading(false);
+    }
   }
 
   const toggleSel = (id: string) => setSelected(s => {
@@ -81,15 +111,23 @@ export function ApprovalCenter({ tripId, transactions, participants }: {
   return (
     <div className="space-y-4">
       {/* Hero */}
-      <div className="bg-bg-1 border border-border rounded-lg p-5 flex items-center justify-between">
+      <div className="bg-bg-1 border border-border rounded-lg p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-text-3">Approval Center</div>
           <div className="text-xl font-semibold">{stats.pending} pengajuan menunggu</div>
           <div className="text-xs">Total Rp {formatRupiah(stats.pendingAmt)} · {reimbList.length} reimbursable</div>
         </div>
-        <div className="text-right">
-          <div className="mono text-2xl font-semibold">{stats.approved}<span className="text-text-3 text-base">/{reimbList.length}</span></div>
-          <div className="text-xs">Disetujui · Rp {formatRupiah(stats.approvedAmt)}</div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="mono text-2xl font-semibold">{stats.approved}<span className="text-text-3 text-base">/{reimbList.length}</span></div>
+            <div className="text-xs">Disetujui · Rp {formatRupiah(stats.approvedAmt)}</div>
+          </div>
+          {stats.pending > 0 && (
+            <Button onClick={approveAllPending} disabled={bulkLoading} title="Approve semua transaksi pending dengan jumlah penuh">
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              Approve Semua ({stats.pending})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -97,8 +135,11 @@ export function ApprovalCenter({ tripId, transactions, participants }: {
         <div className="bg-warm-soft border border-warm-soft rounded-lg p-3 flex items-center justify-between">
           <div className="text-sm">{selected.size} item terpilih</div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Batal</Button>
-            <Button size="sm" onClick={bulkApprove}><Check size={14} /> Approve Semua</Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())} disabled={bulkLoading}>Batal</Button>
+            <Button size="sm" onClick={bulkApprove} disabled={bulkLoading}>
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              Approve {selected.size} terpilih
+            </Button>
           </div>
         </div>
       )}
@@ -197,11 +238,7 @@ function ApprovalDetail({ tx, payer, onApprove, onReject, onReset }: {
         </div>
       </div>
 
-      {tx.receipt_url && (
-        <a href={tx.receipt_url} target="_blank" rel="noreferrer" className="block">
-          <img src={tx.receipt_url} alt="Struk" className="max-h-64 object-contain rounded border border-border" />
-        </a>
-      )}
+      {tx.receipt_url && <ReceiptImage url={tx.receipt_url} />}
 
       <div className="bg-bg-2 border border-border rounded p-3">
         <div className="flex justify-between text-xs">
@@ -249,6 +286,78 @@ function ApprovalDetail({ tx, payer, onApprove, onReject, onReset }: {
             <div className="text-xs">{tx.reviewed_at ?? ''}</div>
           </div>
           <Button variant="ghost" size="sm" onClick={onReset}>Reset ke pending</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReceiptImage({ url }: { url: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+  const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    setLoaded(false);
+    setErrored(false);
+    setZoom(null);
+  }, [url]);
+
+  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setZoom({ x, y });
+  }
+
+  return (
+    <div>
+      <a href={url} target="_blank" rel="noreferrer" className="block" aria-label="Buka struk ukuran penuh di tab baru">
+        <div
+          className="relative overflow-hidden rounded border border-border bg-bg-2 cursor-zoom-in"
+          onMouseMove={loaded && !errored ? handleMove : undefined}
+          onMouseLeave={() => setZoom(null)}
+          style={{ minHeight: '12rem' }}
+        >
+          {!loaded && !errored && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-3">
+              <Loader2 size={28} className="animate-spin" />
+              <span className="text-xs">Memuat struk…</span>
+            </div>
+          )}
+          {errored && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-text-3">
+              <ImageIcon size={20} />
+              <span className="text-xs">Gagal memuat struk</span>
+            </div>
+          )}
+          <img
+            src={url}
+            alt="Struk"
+            draggable={false}
+            className={`max-h-64 mx-auto object-contain transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setLoaded(true)}
+            onError={() => setErrored(true)}
+          />
+          {loaded && !errored && zoom && (
+            <div
+              className="pointer-events-none absolute w-36 h-36 rounded-full border-2 border-white shadow-xl"
+              style={{
+                left: `${zoom.x}%`,
+                top: `${zoom.y}%`,
+                transform: 'translate(-50%, -50%)',
+                backgroundImage: `url(${url})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: `${zoom.x}% ${zoom.y}%`,
+                backgroundSize: '300%',
+              }}
+            />
+          )}
+        </div>
+      </a>
+      {loaded && !errored && (
+        <div className="text-[11px] text-text-3 mt-1.5 text-center">
+          Hover untuk zoom · klik untuk buka ukuran penuh
         </div>
       )}
     </div>
